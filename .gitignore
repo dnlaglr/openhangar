@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Electron / Vite Outputs
+apps/*/out/
+apps/*/dist/
+apps/*/release/
+packages/*/dist/
+*.tsbuildinfo
+.vite/
+
+# Go Outputs
+backend/bin/
+*.exe
+*.test
+*.out
+coverage.*
+go.work
+go.work.sum
+
+# Sandbox Images
+images/build/
+*.ext4
+*.img
+vmlinux*
+*.tar.gz
+
+# Local Runtime State
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sock
+*.log
+tmp/
+
+# Secrets / Environment Files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editor Files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
