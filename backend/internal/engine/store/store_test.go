@@ -49,7 +49,11 @@ func seed(t *testing.T, s *Store) (domain.Project, domain.Workspace, domain.Chat
 		Status: domain.WorkspaceCreated, CreatedAt: at, UpdatedAt: at,
 	}
 
-	c := domain.Chat{ID: domain.NewID(), WorkspaceID: w.ID, Title: "Fix login", ProviderSessionID: "sess-1", CreatedAt: at}
+	c := domain.Chat{
+		ID: domain.NewID(), WorkspaceID: w.ID, Title: "Fix login",
+		Agent:             domain.Agent{Provider: "claude-code", Model: "haiku", Effort: "low"},
+		ProviderSessionID: "sess-1", CreatedAt: at,
+	}
 
 	if err := s.CreateProject(ctx, p); err != nil {
 		t.Fatal(err)

@@ -85,8 +85,15 @@ type Chat struct {
 	ID                string
 	WorkspaceID       string
 	Title             string
+	Agent             Agent
 	ProviderSessionID string
 	CreatedAt         time.Time
+}
+
+type Agent struct {
+	Provider string `json:"provider"`
+	Model    string `json:"model,omitempty"`
+	Effort   string `json:"effort,omitempty"`
 }
 
 type Event struct {
