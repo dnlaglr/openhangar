@@ -264,3 +264,39 @@ func TestInterruptCheckpointsPartialWork(t *testing.T) {
 		t.Fatalf("checkpoint files = %q", files)
 	}
 }
+
+func TestRecoverEndsOpenTurnsAndRunsQueuedMessages(t *testing.T) {
+	e := newEnv(t, func(context.Context, provider.Request, func(domain.Payload) error) (provider.Result, error) {
+		return provider.Result{}, nil
+	})
+	ctx := t.Context()
+	member := e.svc.Store.MemberID()
+
+	crashed, err := e.svc.append(ctx, e.chat.ID, member, domain.UserMessage{Text: "before crash"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	open := domain.TurnStarted{TurnID: domain.NewID(), MessageIDs: []string{crashed.ID}, Agent: e.chat.Agent}
+	if _, err := e.svc.append(ctx, e.chat.ID, domain.AuthorAgent, open); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.append(ctx, e.chat.ID, member, domain.UserMessage{Text: "after restart"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := e.svc.Recover(ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.wg.Wait()
+
+	ended := e.events(t, e.chat.ID, domain.EventTurnEnded)
+	if len(ended) != 2 {
+		t.Fatalf("turn_ended events = %d, want the recovered turn and the queued one", len(ended))
+	}
+	if r := decode[domain.TurnEnded](t, ended[0]); r.TurnID != open.TurnID || r.Outcome != domain.OutcomeFailed {
+		t.Fatalf("recovered turn_ended = %+v", r)
+	}
+	if len(e.fake.calls) != 1 || !reflect.DeepEqual(e.fake.calls[0].Prompts, []string{"after restart"}) {
+		t.Fatalf("turns after recovery = %+v, want only the queued message", e.fake.calls)
+	}
+}

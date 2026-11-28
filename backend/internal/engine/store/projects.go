@@ -28,6 +28,16 @@ func (s *Store) Project(ctx context.Context, id string) (domain.Project, error) 
 		return domain.Project{}, notFound(err, "project", id)
 	}
 
+	return projectFromRow(row), nil
+}
+
+func (s *Store) Projects(ctx context.Context) ([]domain.Project, error) {
+	rows, err := s.q.ListProjects(ctx)
+
+	return mapRows(rows, err, projectFromRow)
+}
+
+func projectFromRow(row db.Project) domain.Project {
 	return domain.Project{
 		ID:            row.ID,
 		Name:          row.Name,
@@ -39,5 +49,5 @@ func (s *Store) Project(ctx context.Context, id string) (domain.Project, error) 
 		MergeMode:     row.MergeMode,
 		CodeRemote:    row.CodeRemote,
 		CreatedAt:     fromMillis(row.CreatedAt),
-	}, nil
+	}
 }

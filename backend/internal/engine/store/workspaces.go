@@ -27,6 +27,22 @@ func (s *Store) Workspace(ctx context.Context, id string) (domain.Workspace, err
 		return domain.Workspace{}, notFound(err, "workspace", id)
 	}
 
+	return workspaceFromRow(row), nil
+}
+
+func (s *Store) Workspaces(ctx context.Context, projectID string) ([]domain.Workspace, error) {
+	rows, err := s.q.ListWorkspaces(ctx, projectID)
+
+	return mapRows(rows, err, workspaceFromRow)
+}
+
+func (s *Store) WorkspacesWithStatus(ctx context.Context, status domain.WorkspaceStatus) ([]domain.Workspace, error) {
+	rows, err := s.q.ListWorkspacesByStatus(ctx, status)
+
+	return mapRows(rows, err, workspaceFromRow)
+}
+
+func workspaceFromRow(row db.Workspace) domain.Workspace {
 	return domain.Workspace{
 		ID:        row.ID,
 		ProjectID: row.ProjectID,
@@ -35,7 +51,7 @@ func (s *Store) Workspace(ctx context.Context, id string) (domain.Workspace, err
 		Status:    row.Status,
 		CreatedAt: fromMillis(row.CreatedAt),
 		UpdatedAt: fromMillis(row.UpdatedAt),
-	}, nil
+	}
 }
 
 func (s *Store) WorkspaceSlugs(ctx context.Context, projectID string) ([]string, error) {

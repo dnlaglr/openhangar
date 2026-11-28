@@ -11,6 +11,7 @@ import (
 var (
 	ErrNotFound          = errors.New("not found")
 	ErrInvalidTransition = errors.New("invalid status transition")
+	ErrInvalid           = errors.New("invalid argument")
 )
 
 func NewID() string {

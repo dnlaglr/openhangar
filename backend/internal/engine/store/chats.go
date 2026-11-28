@@ -31,16 +31,8 @@ func (s *Store) Chat(ctx context.Context, id string) (domain.Chat, error) {
 
 func (s *Store) Chats(ctx context.Context, workspaceID string) ([]domain.Chat, error) {
 	rows, err := s.q.ListChats(ctx, workspaceID)
-	if err != nil {
-		return nil, err
-	}
 
-	chats := make([]domain.Chat, len(rows))
-	for i, row := range rows {
-		chats[i] = chatFromRow(row)
-	}
-
-	return chats, nil
+	return mapRows(rows, err, chatFromRow)
 }
 
 func (s *Store) SetChatProviderSessionID(ctx context.Context, id, sessionID string) error {

@@ -30,20 +30,69 @@ type Service struct {
 	workers map[string]bool
 	turns   map[string]context.CancelFunc
 	wg      sync.WaitGroup
+
+	// events serializes appends with their fan-out, so subscribers see store order and replay never races live events.
+	events sync.Mutex
+	subs   map[string]map[chan domain.Event]struct{}
 }
 
-// TODO: on engine start, end turns left open by a crash and kick workspaces that still have queued messages.
+func (s *Service) Create(ctx context.Context, workspaceID, title string, agent domain.Agent) (domain.Chat, error) {
+	if err := s.CheckAgent(agent); err != nil {
+		return domain.Chat{}, err
+	}
+	if _, err := s.Store.Workspace(ctx, workspaceID); err != nil {
+		return domain.Chat{}, err
+	}
+
+	c := domain.Chat{ID: domain.NewID(), WorkspaceID: workspaceID, Title: title, Agent: agent, CreatedAt: domain.Now()}
+
+	return c, s.Store.CreateChat(ctx, c)
+}
+
+func (s *Service) CheckAgent(agent domain.Agent) error {
+	if _, ok := s.Providers[agent.Provider]; !ok {
+		return fmt.Errorf("unknown provider %q: %w", agent.Provider, domain.ErrInvalid)
+	}
+
+	return nil
+}
+
+// Recover ends turns a crash left open and restarts workspaces with queued messages. Run it once before serving.
+// The crashed turn gets no checkpoint; the next turn's checkpoint picks up whatever it left in the sandbox.
+func (s *Service) Recover(ctx context.Context) error {
+	open, err := s.Store.OpenTurns(ctx)
+	if err != nil {
+		return err
+	}
+	for _, t := range open {
+		ended := domain.TurnEnded{TurnID: t.TurnID, Outcome: domain.OutcomeFailed, Error: "engine stopped during turn"}
+		if _, err := s.append(ctx, t.ChatID, domain.AuthorAgent, ended); err != nil {
+			return err
+		}
+	}
+
+	active, err := s.Store.WorkspacesWithStatus(ctx, domain.WorkspaceActive)
+	if err != nil {
+		return err
+	}
+	for _, w := range active {
+		s.kick(w.ID)
+	}
+
+	return nil
+}
+
 func (s *Service) Post(ctx context.Context, chatID, text string) (domain.Event, error) {
 	if strings.TrimSpace(text) == "" {
-		return domain.Event{}, errors.New("message is empty")
+		return domain.Event{}, fmt.Errorf("message is empty: %w", domain.ErrInvalid)
 	}
 
 	c, err := s.Store.Chat(ctx, chatID)
 	if err != nil {
 		return domain.Event{}, err
 	}
-	if _, ok := s.Providers[c.Agent.Provider]; !ok {
-		return domain.Event{}, fmt.Errorf("chat %s: unknown provider %q", chatID, c.Agent.Provider)
+	if err := s.CheckAgent(c.Agent); err != nil {
+		return domain.Event{}, fmt.Errorf("chat %s: %w", chatID, err)
 	}
 
 	e, err := s.append(ctx, chatID, s.Store.MemberID(), domain.UserMessage{Text: text})
@@ -311,5 +360,12 @@ func (s *Service) append(ctx context.Context, chatID, author string, p domain.Pa
 		CreatedAt: domain.Now(),
 	}
 
-	return e, s.Store.AppendEvent(ctx, e)
+	s.events.Lock()
+	defer s.events.Unlock()
+	if err := s.Store.AppendEvent(ctx, e); err != nil {
+		return domain.Event{}, err
+	}
+	s.publish(e)
+
+	return e, nil
 }

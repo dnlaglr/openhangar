@@ -1,9 +1,12 @@
 package project
 
 import (
+	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/dnlaglr/openhangar/backend/internal/engine/domain"
 	"github.com/dnlaglr/openhangar/backend/internal/engine/git"
@@ -16,6 +19,12 @@ type Service struct {
 }
 
 func (s Service) Add(ctx context.Context, p domain.Project) (domain.Project, error) {
+	if strings.TrimSpace(p.Name) == "" || strings.TrimSpace(p.RemoteURL) == "" {
+		return domain.Project{}, fmt.Errorf("project needs a name and a remote url: %w", domain.ErrInvalid)
+	}
+
+	p.MergeMode = cmp.Or(p.MergeMode, domain.MergePR)
+	p.CodeRemote = cmp.Or(p.CodeRemote, domain.CodeRemoteProject)
 	p.ID = domain.NewID()
 	p.CreatedAt = domain.Now()
 	head, err := s.Repos.Clone(ctx, p.ID, p.RemoteURL)

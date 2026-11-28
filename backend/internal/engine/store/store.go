@@ -101,6 +101,19 @@ func notFound(err error, what, id string) error {
 	return err
 }
 
+func mapRows[R, T any](rows []R, err error, fn func(R) T) ([]T, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]T, len(rows))
+	for i, row := range rows {
+		out[i] = fn(row)
+	}
+
+	return out, nil
+}
+
 func fromMillis(ms int64) time.Time {
 	return time.UnixMilli(ms).UTC()
 }

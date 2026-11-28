@@ -1,0 +1,11 @@
+{
+  "name": "@openhangar/protocol",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./v1/*": "./gen/hangar/v1/*_pb.ts"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.17.0"
+  }
+}

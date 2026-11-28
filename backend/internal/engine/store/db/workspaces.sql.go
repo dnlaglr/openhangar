@@ -93,6 +93,76 @@ func (q *Queries) ListWorkspaceSlugs(ctx context.Context, projectID string) ([]s
 	return items, nil
 }
 
+const listWorkspaces = `-- name: ListWorkspaces :many
+SELECT id, project_id, name, slug, status, created_at, updated_at FROM workspaces WHERE project_id = ? ORDER BY created_at, id
+`
+
+func (q *Queries) ListWorkspaces(ctx context.Context, projectID string) ([]Workspace, error) {
+	rows, err := q.db.QueryContext(ctx, listWorkspaces, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Workspace
+	for rows.Next() {
+		var i Workspace
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.Name,
+			&i.Slug,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWorkspacesByStatus = `-- name: ListWorkspacesByStatus :many
+SELECT id, project_id, name, slug, status, created_at, updated_at FROM workspaces WHERE status = ? ORDER BY created_at, id
+`
+
+func (q *Queries) ListWorkspacesByStatus(ctx context.Context, status domain.WorkspaceStatus) ([]Workspace, error) {
+	rows, err := q.db.QueryContext(ctx, listWorkspacesByStatus, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Workspace
+	for rows.Next() {
+		var i Workspace
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.Name,
+			&i.Slug,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateWorkspaceStatus = `-- name: UpdateWorkspaceStatus :execrows
 UPDATE workspaces SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4
 `
