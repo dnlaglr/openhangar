@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -21,7 +22,6 @@ type Service struct {
 	Runtime sandbox.Runtime
 }
 
-// TODO: reconcile workspaces left in "created" by a crash mid-create when the engine starts.
 func (s Service) Create(ctx context.Context, projectID, name string, agent domain.Agent) (domain.Workspace, domain.Chat, error) {
 	p, err := s.Store.Project(ctx, projectID)
 	if err != nil {
@@ -92,6 +92,29 @@ func (s Service) provision(ctx context.Context, p domain.Project, w domain.Works
 		}
 		return tx.CreateChat(ctx, chat)
 	})
+}
+
+// Reconcile removes workspaces a crash left half-created. Run it before serving, never alongside Create.
+func (s Service) Reconcile(ctx context.Context) error {
+	stale, err := s.Store.WorkspacesWithStatus(ctx, domain.WorkspaceCreated)
+	if err != nil {
+		return err
+	}
+
+	for _, w := range stale {
+		slog.WarnContext(ctx, "removing half-created workspace", "workspace_id", w.ID)
+		if err := s.Runtime.Destroy(ctx, s.spec(w)); err != nil {
+			slog.WarnContext(ctx, "destroy half-created sandbox", "workspace_id", w.ID, "err", err)
+		}
+		if err := s.Repos.DeleteBranch(ctx, w.ProjectID, w.Branch()); err != nil {
+			slog.WarnContext(ctx, "delete half-created branch", "workspace_id", w.ID, "err", err)
+		}
+		if err := s.Store.DeleteWorkspace(ctx, w.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s Service) Activate(ctx context.Context, id string) (domain.Workspace, error) {

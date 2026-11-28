@@ -138,3 +138,39 @@ func TestCreateFailureCleansUp(t *testing.T) {
 		t.Fatalf("worktrees left behind: %v", entries)
 	}
 }
+
+func TestReconcileRemovesHalfCreatedWorkspace(t *testing.T) {
+	e := newEnv(t, nil)
+	ctx := t.Context()
+
+	now := domain.Now()
+	w := domain.Workspace{ID: domain.NewID(), ProjectID: e.project.ID, Name: "Crashed", Slug: "crashed", Status: domain.WorkspaceCreated, CreatedAt: now, UpdatedAt: now}
+	if err := e.svc.Store.CreateWorkspace(ctx, w); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Repos.CreateBranch(ctx, e.project.ID, w.Branch(), e.project.DefaultBranch); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.rt.Create(ctx, sandbox.NewSpec(w, e.svc.Repos.Dir(e.project.ID))); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := e.svc.Reconcile(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := e.svc.Store.Workspace(ctx, w.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("half-created workspace still stored: %v", err)
+	}
+	if e.hasBranch(t, w.Branch()) {
+		t.Fatalf("branch %s survived reconcile", w.Branch())
+	}
+	if _, err := os.Stat(e.rt.Dir(w.ID)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("worktree survived reconcile: %v", err)
+	}
+
+	again, _, err := e.svc.Create(ctx, e.project.ID, "Crashed", agent)
+	if err != nil || again.Slug != "crashed" {
+		t.Fatalf("recreate = %+v, %v; want the freed slug", again, err)
+	}
+}

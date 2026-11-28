@@ -73,3 +73,44 @@ func (q *Queries) ListEvents(ctx context.Context, chatID string) ([]Event, error
 	}
 	return items, nil
 }
+
+const listOpenTurns = `-- name: ListOpenTurns :many
+SELECT s.chat_id, CAST(json_extract(s.payload, '$.turn_id') AS TEXT) AS turn_id
+FROM events s
+WHERE s.type = 'turn_started'
+  AND NOT EXISTS (
+    SELECT 1 FROM events e
+    WHERE e.chat_id = s.chat_id
+      AND e.type = 'turn_ended'
+      AND json_extract(e.payload, '$.turn_id') = json_extract(s.payload, '$.turn_id')
+  )
+ORDER BY s.created_at, s.id
+`
+
+type ListOpenTurnsRow struct {
+	ChatID string
+	TurnID string
+}
+
+func (q *Queries) ListOpenTurns(ctx context.Context) ([]ListOpenTurnsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listOpenTurns)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOpenTurnsRow
+	for rows.Next() {
+		var i ListOpenTurnsRow
+		if err := rows.Scan(&i.ChatID, &i.TurnID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -12,3 +12,9 @@ UPDATE workspaces SET status = @to_status, updated_at = @updated_at WHERE id = @
 
 -- name: DeleteWorkspace :exec
 DELETE FROM workspaces WHERE id = ?;
+
+-- name: ListWorkspaces :many
+SELECT * FROM workspaces WHERE project_id = ? ORDER BY created_at, id;
+
+-- name: ListWorkspacesByStatus :many
+SELECT * FROM workspaces WHERE status = ? ORDER BY created_at, id;

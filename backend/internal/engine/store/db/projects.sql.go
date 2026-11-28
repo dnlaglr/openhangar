@@ -67,3 +67,41 @@ func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) er
 	)
 	return err
 }
+
+const listProjects = `-- name: ListProjects :many
+SELECT id, name, remote_url, default_branch, setup_script, run_script, sandbox_image, merge_mode, code_remote, created_at FROM projects ORDER BY created_at, id
+`
+
+func (q *Queries) ListProjects(ctx context.Context) ([]Project, error) {
+	rows, err := q.db.QueryContext(ctx, listProjects)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Project
+	for rows.Next() {
+		var i Project
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.RemoteUrl,
+			&i.DefaultBranch,
+			&i.SetupScript,
+			&i.RunScript,
+			&i.SandboxImage,
+			&i.MergeMode,
+			&i.CodeRemote,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
