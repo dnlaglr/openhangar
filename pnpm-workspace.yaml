@@ -3,3 +3,7 @@ packages:
   - packages/*
 
 minimumReleaseAge: 10080
+
+supportedArchitectures:
+  os: [win32, linux]
+  cpu: [x64]
