@@ -1,0 +1,20 @@
+{
+  "name": "openhangar",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "generate": "buf generate",
+    "lint": "buf lint && biome check .",
+    "format": "biome check --write .",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.0",
+    "@bufbuild/buf": "^1.75.0",
+    "@bufbuild/protoc-gen-es": "^2.17.0"
+  }
+}
