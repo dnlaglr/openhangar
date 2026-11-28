@@ -1,10 +1,12 @@
 package worktree
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dnlaglr/openhangar/backend/internal/engine/git"
 	"github.com/dnlaglr/openhangar/backend/internal/engine/gittest"
@@ -53,5 +55,39 @@ func TestCreateAndDestroy(t *testing.T) {
 
 	if err := rt.Destroy(ctx, spec); err != nil {
 		t.Fatalf("second destroy must be a no-op: %v", err)
+	}
+}
+
+func TestKillStopsBackgroundChildren(t *testing.T) {
+	rt := Runtime{Root: t.TempDir()}
+	spec := sandbox.Spec{WorkspaceID: "w1"}
+	if err := os.MkdirAll(rt.Dir(spec.WorkspaceID), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := rt.Exec(t.Context(), spec, sandbox.Cmd{Name: "sh", Args: []string{"-c", "sleep 60 & echo started; wait"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadFull(p.Stdout(), make([]byte, len("started\n"))); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := p.Kill(); err != nil {
+		t.Fatal(err)
+	}
+
+	drained := make(chan struct{})
+	go func() {
+		_, _ = io.ReadAll(p.Stdout())
+		close(drained)
+	}()
+	select {
+	case <-drained:
+	case <-time.After(3 * time.Second):
+		t.Fatal("background child still holds the pipe after Kill")
+	}
+	if err := p.Wait(); err == nil {
+		t.Fatal("killed process exited cleanly")
 	}
 }
