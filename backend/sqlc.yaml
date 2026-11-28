@@ -1,0 +1,17 @@
+version: "2"
+sql:
+  - engine: sqlite
+    schema: internal/engine/store/migrations
+    queries: internal/engine/store/queries
+    gen:
+      go:
+        package: db
+        out: internal/engine/store/db
+        emit_pointers_for_null_types: true
+        overrides:
+          - column: projects.merge_mode
+            go_type: github.com/dnlaglr/openhangar/backend/internal/engine/domain.MergeMode
+          - column: projects.code_remote
+            go_type: github.com/dnlaglr/openhangar/backend/internal/engine/domain.CodeRemote
+          - column: workspaces.status
+            go_type: github.com/dnlaglr/openhangar/backend/internal/engine/domain.WorkspaceStatus

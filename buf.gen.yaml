@@ -1,0 +1,17 @@
+version: v2
+clean: true
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/dnlaglr/openhangar/backend/gen
+plugins:
+  - local: [go, -C, backend, tool, protoc-gen-go]
+    out: backend/gen
+    opt: paths=source_relative
+  - local: [go, -C, backend, tool, protoc-gen-connect-go]
+    out: backend/gen
+    opt: paths=source_relative
+  - local: protoc-gen-es
+    out: packages/protocol/gen
+    opt: target=ts
