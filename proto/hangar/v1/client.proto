@@ -1,3 +1,163 @@
 syntax = "proto3";
 
 package hangar.v1;
+
+import "hangar/v1/model.proto";
+
+service ProjectService {
+  rpc AddProject(AddProjectRequest) returns (AddProjectResponse);
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+}
+
+message AddProjectRequest {
+  string name = 1;
+  string remote_url = 2;
+  string default_branch = 3;
+  string setup_script = 4;
+  string run_script = 5;
+  string sandbox_image = 6;
+  MergeMode merge_mode = 7;
+  CodeRemote code_remote = 8;
+}
+
+message AddProjectResponse {
+  Project project = 1;
+}
+
+message ListProjectsRequest {}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+}
+
+service WorkspaceService {
+  rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+  rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
+  rpc ActivateWorkspace(ActivateWorkspaceRequest) returns (ActivateWorkspaceResponse);
+  rpc IdleWorkspace(IdleWorkspaceRequest) returns (IdleWorkspaceResponse);
+  rpc ArchiveWorkspace(ArchiveWorkspaceRequest) returns (ArchiveWorkspaceResponse);
+}
+
+message CreateWorkspaceRequest {
+  string project_id = 1;
+  string name = 2;
+  Agent agent = 3;
+}
+
+message CreateWorkspaceResponse {
+  Workspace workspace = 1;
+  Chat chat = 2;
+}
+
+message ListWorkspacesRequest {
+  string project_id = 1;
+}
+
+message ListWorkspacesResponse {
+  repeated Workspace workspaces = 1;
+}
+
+message ActivateWorkspaceRequest {
+  string workspace_id = 1;
+}
+
+message ActivateWorkspaceResponse {
+  Workspace workspace = 1;
+}
+
+message IdleWorkspaceRequest {
+  string workspace_id = 1;
+}
+
+message IdleWorkspaceResponse {
+  Workspace workspace = 1;
+}
+
+message ArchiveWorkspaceRequest {
+  string workspace_id = 1;
+}
+
+message ArchiveWorkspaceResponse {
+  Workspace workspace = 1;
+}
+
+service ChatService {
+  rpc CreateChat(CreateChatRequest) returns (CreateChatResponse);
+  rpc ListChats(ListChatsRequest) returns (ListChatsResponse);
+  rpc PostMessage(PostMessageRequest) returns (PostMessageResponse);
+  rpc InterruptTurn(InterruptTurnRequest) returns (InterruptTurnResponse);
+  // Replays the chat's events after after_event_id (all when empty), then streams new ones live.
+  rpc SubscribeChat(SubscribeChatRequest) returns (stream SubscribeChatResponse);
+}
+
+message CreateChatRequest {
+  string workspace_id = 1;
+  string title = 2;
+  Agent agent = 3;
+}
+
+message CreateChatResponse {
+  Chat chat = 1;
+}
+
+message ListChatsRequest {
+  string workspace_id = 1;
+}
+
+message ListChatsResponse {
+  repeated Chat chats = 1;
+}
+
+message PostMessageRequest {
+  string chat_id = 1;
+  string text = 2;
+}
+
+message PostMessageResponse {
+  Event event = 1;
+}
+
+message InterruptTurnRequest {
+  string chat_id = 1;
+}
+
+message InterruptTurnResponse {
+  bool interrupted = 1;
+}
+
+message SubscribeChatRequest {
+  string chat_id = 1;
+  string after_event_id = 2;
+}
+
+message SubscribeChatResponse {
+  Event event = 1;
+}
+
+service EngineService {
+  rpc ExportDiagnostics(ExportDiagnosticsRequest) returns (ExportDiagnosticsResponse);
+  rpc SetLogLevel(SetLogLevelRequest) returns (SetLogLevelResponse);
+}
+
+message ExportDiagnosticsRequest {
+  string app_version = 1;
+  string wsl_version = 2;
+}
+
+message ExportDiagnosticsResponse {
+  bytes zip = 1;
+}
+
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARN = 3;
+  LOG_LEVEL_ERROR = 4;
+}
+
+message SetLogLevelRequest {
+  LogLevel level = 1;
+}
+
+message SetLogLevelResponse {}
