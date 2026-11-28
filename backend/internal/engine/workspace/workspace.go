@@ -22,7 +22,7 @@ type Service struct {
 }
 
 // TODO: reconcile workspaces left in "created" by a crash mid-create when the engine starts.
-func (s Service) Create(ctx context.Context, projectID, name string) (domain.Workspace, domain.Chat, error) {
+func (s Service) Create(ctx context.Context, projectID, name string, agent domain.Agent) (domain.Workspace, domain.Chat, error) {
 	p, err := s.Store.Project(ctx, projectID)
 	if err != nil {
 		return domain.Workspace{}, domain.Chat{}, err
@@ -44,7 +44,7 @@ func (s Service) Create(ctx context.Context, projectID, name string) (domain.Wor
 		UpdatedAt: now,
 	}
 
-	chat := domain.Chat{ID: domain.NewID(), WorkspaceID: w.ID, Title: name, CreatedAt: now}
+	chat := domain.Chat{ID: domain.NewID(), WorkspaceID: w.ID, Title: name, Agent: agent, CreatedAt: now}
 	if err := s.provision(ctx, p, w, chat); err != nil {
 		return domain.Workspace{}, domain.Chat{}, err
 	}
@@ -136,7 +136,7 @@ func (s Service) transition(
 }
 
 func (s Service) spec(w domain.Workspace) sandbox.Spec {
-	return sandbox.Spec{WorkspaceID: w.ID, RepoDir: s.Repos.Dir(w.ProjectID), Branch: w.Branch()}
+	return sandbox.NewSpec(w, s.Repos.Dir(w.ProjectID))
 }
 
 func slugify(name string) string {

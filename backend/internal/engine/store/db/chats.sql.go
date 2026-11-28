@@ -9,14 +9,38 @@ import (
 	"context"
 )
 
+const getChat = `-- name: GetChat :one
+SELECT id, workspace_id, title, provider_session_id, created_at, provider, model, effort FROM chats WHERE id = ?
+`
+
+func (q *Queries) GetChat(ctx context.Context, id string) (Chat, error) {
+	row := q.db.QueryRowContext(ctx, getChat, id)
+	var i Chat
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Title,
+		&i.ProviderSessionID,
+		&i.CreatedAt,
+		&i.Provider,
+		&i.Model,
+		&i.Effort,
+	)
+	return i, err
+}
+
 const insertChat = `-- name: InsertChat :exec
-INSERT INTO chats (id, workspace_id, title, provider_session_id, created_at) VALUES (?, ?, ?, ?, ?)
+INSERT INTO chats (id, workspace_id, title, provider, model, effort, provider_session_id, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertChatParams struct {
 	ID                string
 	WorkspaceID       string
 	Title             string
+	Provider          string
+	Model             string
+	Effort            string
 	ProviderSessionID *string
 	CreatedAt         int64
 }
@@ -26,6 +50,9 @@ func (q *Queries) InsertChat(ctx context.Context, arg InsertChatParams) error {
 		arg.ID,
 		arg.WorkspaceID,
 		arg.Title,
+		arg.Provider,
+		arg.Model,
+		arg.Effort,
 		arg.ProviderSessionID,
 		arg.CreatedAt,
 	)
@@ -33,7 +60,7 @@ func (q *Queries) InsertChat(ctx context.Context, arg InsertChatParams) error {
 }
 
 const listChats = `-- name: ListChats :many
-SELECT id, workspace_id, title, provider_session_id, created_at FROM chats WHERE workspace_id = ? ORDER BY created_at, id
+SELECT id, workspace_id, title, provider_session_id, created_at, provider, model, effort FROM chats WHERE workspace_id = ? ORDER BY created_at, id
 `
 
 func (q *Queries) ListChats(ctx context.Context, workspaceID string) ([]Chat, error) {
@@ -51,6 +78,9 @@ func (q *Queries) ListChats(ctx context.Context, workspaceID string) ([]Chat, er
 			&i.Title,
 			&i.ProviderSessionID,
 			&i.CreatedAt,
+			&i.Provider,
+			&i.Model,
+			&i.Effort,
 		); err != nil {
 			return nil, err
 		}
@@ -63,4 +93,18 @@ func (q *Queries) ListChats(ctx context.Context, workspaceID string) ([]Chat, er
 		return nil, err
 	}
 	return items, nil
+}
+
+const setChatProviderSessionID = `-- name: SetChatProviderSessionID :exec
+UPDATE chats SET provider_session_id = ? WHERE id = ?
+`
+
+type SetChatProviderSessionIDParams struct {
+	ProviderSessionID *string
+	ID                string
+}
+
+func (q *Queries) SetChatProviderSessionID(ctx context.Context, arg SetChatProviderSessionIDParams) error {
+	_, err := q.db.ExecContext(ctx, setChatProviderSessionID, arg.ProviderSessionID, arg.ID)
+	return err
 }

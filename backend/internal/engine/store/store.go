@@ -25,6 +25,7 @@ type Store struct {
 	sql       *sql.DB
 	q         *db.Queries
 	machineID string
+	memberID  string
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
@@ -48,13 +49,21 @@ func (s *Store) init(ctx context.Context) error {
 	if err := migrate(ctx, s.sql, migrations); err != nil {
 		return err
 	}
-	err := s.q.InsertMetaIfAbsent(ctx, db.InsertMetaIfAbsentParams{Key: "machine_id", Value: domain.NewID()})
-	if err != nil {
+	var err error
+	if s.machineID, err = s.generatedMeta(ctx, "machine_id"); err != nil {
 		return err
 	}
-	s.machineID, err = s.q.GetMeta(ctx, "machine_id")
+	s.memberID, err = s.generatedMeta(ctx, "member_id")
 
 	return err
+}
+
+func (s *Store) generatedMeta(ctx context.Context, key string) (string, error) {
+	if err := s.q.InsertMetaIfAbsent(ctx, db.InsertMetaIfAbsentParams{Key: key, Value: domain.NewID()}); err != nil {
+		return "", err
+	}
+
+	return s.q.GetMeta(ctx, key)
 }
 
 func (s *Store) Close() error {
@@ -65,12 +74,19 @@ func (s *Store) MachineID() string {
 	return s.machineID
 }
 
+// MemberID identifies the local member until Tower accounts exist; it authors this machine's user messages.
+func (s *Store) MemberID() string {
+	return s.memberID
+}
+
 func (s *Store) InTx(ctx context.Context, fn func(tx *Store) error) error {
 	tx, err := s.sql.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if err := fn(&Store{sql: s.sql, q: s.q.WithTx(tx), machineID: s.machineID}); err != nil {
+	txStore := *s
+	txStore.q = s.q.WithTx(tx)
+	if err := fn(&txStore); err != nil {
 		return errors.Join(err, tx.Rollback())
 	}
 

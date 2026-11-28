@@ -16,6 +16,8 @@ import (
 	"github.com/dnlaglr/openhangar/backend/internal/engine/store"
 )
 
+var agent = domain.Agent{Provider: "claude-code"}
+
 type env struct {
 	svc     Service
 	project domain.Project
@@ -63,7 +65,7 @@ func TestLifecycle(t *testing.T) {
 	e := newEnv(t, nil)
 	ctx := t.Context()
 
-	w, chat, err := e.svc.Create(ctx, e.project.ID, "Fix Login!")
+	w, chat, err := e.svc.Create(ctx, e.project.ID, "Fix Login!", agent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +109,7 @@ func TestLifecycle(t *testing.T) {
 		t.Fatal("archive must keep the branch")
 	}
 
-	again, _, err := e.svc.Create(ctx, e.project.ID, "fix login")
+	again, _, err := e.svc.Create(ctx, e.project.ID, "fix login", agent)
 	if err != nil || again.Slug != "fix-login-2" {
 		t.Fatalf("second workspace slug = %q, %v; archived slugs stay taken", again.Slug, err)
 	}
@@ -121,7 +123,7 @@ func TestCreateFailureCleansUp(t *testing.T) {
 	e := newEnv(t, func(rt sandbox.Runtime) sandbox.Runtime { return failingStart{rt} })
 	ctx := t.Context()
 
-	if _, _, err := e.svc.Create(ctx, e.project.ID, "doomed"); err == nil {
+	if _, _, err := e.svc.Create(ctx, e.project.ID, "doomed", agent); err == nil {
 		t.Fatal("create succeeded with a failing runtime")
 	}
 	if slugs, err := e.svc.Store.WorkspaceSlugs(ctx, e.project.ID); err != nil || len(slugs) != 0 {

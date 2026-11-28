@@ -14,6 +14,9 @@ type Chat struct {
 	Title             string
 	ProviderSessionID *string
 	CreatedAt         int64
+	Provider          string
+	Model             string
+	Effort            string
 }
 
 type Event struct {
